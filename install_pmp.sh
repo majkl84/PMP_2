@@ -31,7 +31,7 @@ fi
 # Проверка и установка нужной версии Python
 if ! uv python find "${PYTHON_VERSION}" &>/dev/null; then
     echo "Установка Python ${PYTHON_VERSION} через uv..."
-    uv python install "${PYTHON_VERSION}"
+    uv python install "${PYTHON_VERSION}" --install-pip
 fi
 
 # Копирование файлов (сохранение прав)
@@ -44,14 +44,14 @@ if ! id pmp &>/dev/null; then
 fi
 chown -R pmp:pmp "$PROJECT_DIR"
 
-# Создание venv с нужной версией Python
-uv venv -p "$(uv python find ${PYTHON_VERSION})" "$VENV_DIR" || {
+# Создание venv с нужной версией Python и установкой pip
+uv venv -p "$(uv python find ${PYTHON_VERSION})" "$VENV_DIR" --install-pip || {
     echo "Ошибка: Не удалось создать venv";
     exit 1;
 }
 
-# Установка зависимостей из pyproject.toml
-uv pip install -e "$PROJECT_DIR" || {
+# Установка зависимостей через pip из venv
+"$VENV_DIR/bin/pip" install -e "$PROJECT_DIR" || {
     echo "Ошибка: Не удалось установить зависимости";
     exit 1;
 }
