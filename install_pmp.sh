@@ -54,7 +54,7 @@ fi
 chown -R pmp:pmp "$PROJECT_DIR"
 
 # Создание venv с нужной версией Python
-echo "Создание виртуального окружения..."
+echo "Создание виртуального окружения с помощью uv..."
 if ! uv venv -p "$(uv python find ${PYTHON_VERSION})" "$VENV_DIR"; then
     echo "Ошибка: Не удалось создать venv";
     exit 1;
@@ -69,8 +69,8 @@ if [ ! -f "$VENV_DIR/bin/pip" ]; then
 fi
 
 # Установка зависимостей из pyproject.toml
-echo "Установка зависимостей..."
-if ! "$VENV_DIR/bin/python" -m pip install -e "$PROJECT_DIR"; then
+echo "Установка зависимостей с помощью uv..."
+if ! uv pip install -e "$PROJECT_DIR"; then
     echo "Ошибка: Не удалось установить зависимости";
     exit 1;
 fi
