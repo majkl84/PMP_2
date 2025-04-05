@@ -16,10 +16,12 @@ wget "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O 
 tar xfz pmp.tar.gz
 cd "$PMP_VERSION"
 
-# Установка uv
+# Установка uv в системную директорию
 if ! command -v uv &> /dev/null; then
     curl -LsS https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.cargo/bin:$PATH"
+    # Переносим uv в /usr/local/bin чтобы был доступен всем пользователям
+    mv "$HOME/.cargo/bin/uv" /usr/local/bin/
+    export PATH="/usr/local/bin:$PATH"
 fi
 
 # Копирование файлов (сохранение прав)
@@ -42,7 +44,7 @@ After=network.target
 User=pmp
 Group=pmp
 WorkingDirectory=$PROJECT_DIR
-ExecStart=$(which uv) run $PROJECT_DIR/app.py
+ExecStart=/usr/local/bin/uv run $PROJECT_DIR/app.py
 Restart=always
 RestartSec=5
 
@@ -64,6 +66,6 @@ if systemctl is-active --quiet pmp.service; then
     echo "Удаление временных файлов..."
     rm -rf "/tmp/${PMP_VERSION}" "/tmp/pmp.tar.gz"
 else
-    echo "Ошибка: сервис не запущен. Файлы сохранены в /tmp для диагностики"
+    echo "Ошибка: сервис не запущен. Проверьте журналы: journalctl -u pmp.service -b"
     exit 1
 fi
