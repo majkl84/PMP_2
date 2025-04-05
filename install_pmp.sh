@@ -5,10 +5,10 @@
 #---------------------------------------------------------------------
 # https://github.com/majkl84/PMP_2
 
-set -e  # Прерывать при ошибках
+set -e
 PMP_VERSION="PMP_2-PMP_R.1.0.0"
 PROJECT_DIR="/usr/bin/pmp"
-VENV_DIR="$PROJECT_DIR/venv"
+UV_BIN="/usr/local/bin/uv"
 
 # Скачивание и распаковка
 cd /tmp
@@ -16,15 +16,16 @@ wget "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O 
 tar xfz pmp.tar.gz
 cd "$PMP_VERSION"
 
-# Установка uv в системную директорию
-if ! command -v uv &> /dev/null; then
+# Глобальная установка uv
+if ! command -v uv &>/dev/null; then
     curl -LsS https://astral.sh/uv/install.sh | sh
-    # Переносим uv в /usr/local/bin чтобы был доступен всем пользователям
-    mv "$HOME/.cargo/bin/uv" /usr/local/bin/
-    export PATH="/usr/local/bin:$PATH"
+    # Переносим uv в системную директорию
+    mkdir -p /usr/local/bin
+    mv "$HOME/.cargo/bin/uv" "$UV_BIN"
+    chmod +x "$UV_BIN"
 fi
 
-# Копирование файлов (сохранение прав)
+# Копирование файлов
 mkdir -p "$PROJECT_DIR"
 cp -r . "$PROJECT_DIR/"
 
@@ -33,6 +34,12 @@ if ! id pmp &>/dev/null; then
     useradd -rs /bin/false pmp
 fi
 chown -R pmp:pmp "$PROJECT_DIR"
+
+# Проверка доступности uv для пользователя pmp
+if ! sudo -u pmp test -x "$UV_BIN"; then
+    echo "Ошибка: uv не доступен для пользователя pmp"
+    exit 1
+fi
 
 # Systemd сервис
 cat > /etc/systemd/system/pmp.service <<EOF
@@ -44,7 +51,7 @@ After=network.target
 User=pmp
 Group=pmp
 WorkingDirectory=$PROJECT_DIR
-ExecStart=/usr/local/bin/uv run $PROJECT_DIR/app.py
+ExecStart=$UV_BIN run $PROJECT_DIR/app.py
 Restart=always
 RestartSec=5
 
@@ -57,15 +64,11 @@ systemctl daemon-reload
 systemctl enable pmp.service
 systemctl start pmp.service
 
-# Проверка
 echo "Установка завершена"
-systemctl status pmp.service --no-pager
-
-# После успешного запуска сервиса
-if systemctl is-active --quiet pmp.service; then
-    echo "Удаление временных файлов..."
-    rm -rf "/tmp/${PMP_VERSION}" "/tmp/pmp.tar.gz"
-else
+systemctl status pmp.service --no-pager || {
     echo "Ошибка: сервис не запущен. Проверьте журналы: journalctl -u pmp.service -b"
     exit 1
-fi
+}
+
+# Очистка
+rm -rf "/tmp/${PMP_VERSION}" "/tmp/pmp.tar.gz"
