@@ -44,7 +44,7 @@ fi
 chown -R pmp:pmp "$PROJECT_DIR"
 
 # Создание venv с нужной версией Python и pip
-uv venv -p "$(uv python find ${PYTHON_VERSION})" "$VENV_DIR" --install-pip
+#uv venv -p "$(uv python find ${PYTHON_VERSION})" "$VENV_DIR" --install-pip
 
 # Установка зависимостей из pyproject.toml
 uv pip install -e "$PROJECT_DIR" || {
