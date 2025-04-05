@@ -3,7 +3,7 @@
 # Script to Install PMP on Linux
 # Developed by Majkl84 in 2025
 #--------------------------------------------------------------------
-# https://github.com/majkl84/PMP
+# https://github.com/majkl84/PMP_2
 
 set -e  # Прерывать при ошибках
 PMP_VERSION="PMP_2-PMP_R.1.0.0"
