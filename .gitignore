@@ -3,3 +3,8 @@ __pycache__/
 
 build/
 *.egg-info/
+.gitignore
+power_manager.db
+.idea
+LICENSE
+requirements.txt
