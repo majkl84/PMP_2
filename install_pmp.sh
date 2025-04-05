@@ -18,7 +18,7 @@ apt install -y curl wget
 cd /tmp
 wget "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O pmp.tar.gz
 tar xvfz pmp.tar.gz
-cd "PMP-$PMP_VERSION"
+cd "$PMP_VERSION"
 
 # Копирование файлов (сохранение прав)
 mkdir -p "$PROJECT_DIR"
