@@ -9,7 +9,7 @@ set -e  # Прерывать при ошибках
 set -x  # Включить отладочный режим (вывод всех команд)
 
 PMP_VERSION="PMP_2-PMP_R.1.0.0"
-PROJECT_DIR="/opt/pmp"  # Изменено на /opt/pmp для избежания проблем с правами
+PROJECT_DIR="/usr/bin/pmp"  # Используем исходную директорию
 VENV_DIR="$PROJECT_DIR/venv"
 
 # Скачивание и распаковка
@@ -75,6 +75,15 @@ if ! uv pip install -e "$PROJECT_DIR"; then
     exit 1;
 fi
 
+# Проверка наличия app.py
+if [ ! -f "$PROJECT_DIR/app.py" ]; then
+    echo "Ошибка: Файл app.py не найден в $PROJECT_DIR";
+    exit 1;
+fi
+
+# Добавление прав на выполнение
+chmod +x "$PROJECT_DIR/app.py"
+
 # Systemd сервис
 echo "Создание systemd-сервиса..."
 cat > /etc/systemd/system/pmp.service <<EOF
@@ -89,6 +98,8 @@ WorkingDirectory=$PROJECT_DIR
 ExecStart=$VENV_DIR/bin/python $PROJECT_DIR/app.py
 Restart=always
 RestartSec=5
+StandardOutput=append:/var/log/pmp.log
+StandardError=append:/var/log/pmp_error.log
 
 [Install]
 WantedBy=multi-user.target
