@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+{% include 'header.html' %}
+<body>
+{% include 'navbar.html' %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4">Панель мониторинга питанием</h1>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">Фаза A</div>
+                <div class="card-body">
+                    <p class="indicator"><strong>Напряжение:</strong> <span id="L1U">--</span> В</p>
+                    <p class="indicator"><strong>Ток:</strong> <span id="L1A">--</span> A</p>
+                    <p class="indicator"><strong>Мощность:</strong> <span id="L1W">--</span> кВт</p>
+                    <p class="indicator"><strong>Энергия (кВтч):</strong> <span id="L1kWh">--</span> kWh</p>
+                    <p class="indicator"><strong>Частота:</strong> <span id="L1Hz">--</span> Гц</p>
+                    <p class="indicator"><strong>Коэффициент мощности:</strong> <span id="L1Pf">--</span></p>
+                    <p class="indicator"><strong>Статус тревоги:</strong> <span id="L1Alarm">--</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-success">Фаза B</div>
+                <div class="card-body">
+                    <p class="indicator"><strong>Напряжение:</strong> <span id="L2U">--</span> В</p>
+                    <p class="indicator"><strong>Ток:</strong> <span id="L2A">--</span> A</p>
+                    <p class="indicator"><strong>Мощность:</strong> <span id="L2W">--</span> кВт</p>
+                    <p class="indicator"><strong>Энергия (кВтч):</strong> <span id="L2kWh">--</span> kWh</p>
+                    <p class="indicator"><strong>Частота:</strong> <span id="L2Hz">--</span> Гц</p>
+                    <p class="indicator"><strong>Коэффициент мощности:</strong> <span id="L2Pf">--</span></p>
+                    <p class="indicator"><strong>Статус тревоги:</strong> <span id="L2Alarm">--</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-danger">Фаза C</div>
+                <div class="card-body">
+                    <p class="indicator"><strong>Напряжение:</strong> <span id="L3U">--</span> В</p>
+                    <p class="indicator"><strong>Ток:</strong> <span id="L3A">--</span> A</p>
+                    <p class="indicator"><strong>Мощность:</strong> <span id="L3W">--</span> кВт</p>
+                    <p class="indicator"><strong>Энергия (кВтч):</strong> <span id="L3kWh">--</span> kWh</p>
+                    <p class="indicator"><strong>Частота:</strong> <span id="L3Hz">--</span> Гц</p>
+                    <p class="indicator"><strong>Коэффициент мощности:</strong> <span id="L3Pf">--</span></p>
+                    <p class="indicator"><strong>Статус тревоги:</strong> <span id="L3Alarm">--</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-info">Общие показания</div>
+                <div class="card-body">
+                    <p class="indicator"><strong>Мощность:</strong> <span id="GeneralW">--</span> кВт</p>
+                    <p class="indicator"><strong>Потребленная мощность:</strong> <span id="TotalkWh">--</span> kWh</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-dark text-light d-flex justify-content-between align-items-center">
+                    <span>Журнал событий</span>
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch me-2">
+                            <input class="form-check-input" type="checkbox" id="toggleLogging">
+                            <label class="form-check-label" for="toggleLogging">Логирование</label>
+                        </div>
+                        <input type="number" id="logLimit" class="form-control" value="10" min="1" style="width: 60px;">
+                    </div>
+                </div>
+                <div class="card-body" id="logs">
+                    <p class="text-muted">Загрузка журналов...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12 text-center">
+            <button id="clearLogs" class="btn btn-danger">Очистить журнал</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Обновление данных для каждой фазы
+    function updateData(data) {
+        for (let phase of ['L1', 'L2', 'L3']) {
+            const voltage = parseFloat(data[phase].Voltage) || 0;
+            const current = parseFloat(data[phase].Current) || 0;
+            const power = parseFloat(data[phase].Power) || 0;
+            const energyF = parseFloat(data[phase].Energy_F) || 0;
+            const frequency = parseFloat(data[phase].Frequency) || 0;
+            const powerFactor = parseFloat(data[phase].PowerFactor) || 0;
+            const alarmStatus = (data[phase].AlarmStatus === 1) ? "1" : (data[phase].AlarmStatus === 0) ? "0" : "--";
+
+            $(`#${phase}U`).text(voltage.toFixed(1));
+            $(`#${phase}A`).text(current.toFixed(1));
+            $(`#${phase}W`).text(power.toFixed(2));
+            $(`#${phase}kWh`).text(energyF.toFixed(1));
+            $(`#${phase}Hz`).text(frequency.toFixed(1));
+            $(`#${phase}Pf`).text(powerFactor.toFixed(2));
+            $(`#${phase}Alarm`).text(alarmStatus);  // Обновление статуса тревоги
+        }
+
+        // Обновление общей мощности
+        $.getJSON('/data', function (data) {
+            const totalPower = (parseFloat(data.L1.Power) || 0) + (parseFloat(data.L2.Power) || 0) + (parseFloat(data.L3.Power) || 0);
+            $("#GeneralW").text((totalPower).toFixed(2));
+        });
+
+        // Обновление общей энергии
+        $.getJSON('/total_data', function (totalData) {
+            const totalEnergy = (parseFloat(totalData.L1total) || 0) + (parseFloat(totalData.L2total) || 0) + (parseFloat(totalData.L3total) || 0);
+            $("#TotalkWh").text((totalEnergy / 1000).toFixed(1));
+        });
+    }
+
+    // Обновление логов
+    function updateLogs(logs) {
+        let output = '';
+        logs.forEach(log => {
+            output += `<div class="log-entry"><strong>[${log.timestamp}]</strong> ${log.message}</div>`;
+        });
+
+        // Обновляем содержимое и проверяем количество записей
+        $('#logs').html(output || '<p class="text-muted">Журнал пуст</p>');
+
+        // Проверяем, нужно ли добавлять прокрутку
+        if (logs.length > 20) {
+            $('#logs').css('max-height', '800px'); // Устанавливаем высоту для прокрутки
+            $('#logs').css('overflow-y', 'auto');  // Включаем прокрутку
+        } else {
+            $('#logs').css('max-height', 'none');  // Убираем ограничение по высоте
+            $('#logs').css('overflow-y', 'visible'); // Убираем прокрутку
+        }
+    }
+
+    // Автоматическое обновление данных каждые 5 секунд
+    setInterval(() => {
+        $.getJSON('/data', function (data) {
+            updateData(data);
+        });
+    }, 5000);
+
+    // Автоматическое обновление логов каждые 10 секунд
+    setInterval(() => {
+        loadLogs($('#logLimit').val()); // Загружаем логи с текущим значением LIMIT
+    }, 10000);
+
+    // Начальное обновление данных и логов при загрузке страницы
+    $(document).ready(function () {
+        // Получение состояния логирования
+        $.getJSON('/get_logging_state', function (response) {
+            $('#toggleLogging').prop('checked', response.logging_enabled);
+            $('#toggleLogging').text(response.logging_enabled ? 'Отключить логирование' : 'Включить логирование');
+
+            // Загружаем логи только если логирование включено
+            if (response.logging_enabled) {
+                const savedLimit = localStorage.getItem('logLimit') || 10; // Загружаем сохраненное значение или 10 по умолчанию
+                $('#logLimit').val(savedLimit); // Устанавливаем значение в поле ввода
+                loadLogs(savedLimit);
+            } else {
+                $('#logs').html('<p class="text-muted">Логирование отключено</p>');
+            }
+        });
+
+        // Загрузка данных
+        $.getJSON('/data', function (data) {
+            updateData(data);
+        });
+
+        // Обновление логов при изменении значения limit
+        $('#logLimit').change(function () {
+            const limit = $(this).val();
+            localStorage.setItem('logLimit', limit); // Сохраняем значение LIMIT
+            if ($('#toggleLogging').is(':checked')) {
+                loadLogs(limit);
+            }
+        });
+    });
+
+    // Переключение логирования
+    $('#toggleLogging').change(function () {
+        const loggingEnabled = $(this).is(':checked');
+        $.post('/toggle_logging', function (response) {
+            alert(`Логирование сейчас ${response.logging_enabled ? 'включено' : 'отключено'}`);
+            if (response.logging_enabled) {
+                loadLogs($('#logLimit').val());
+            } else {
+                $('#logs').html('<p class="text-muted">Логирование отключено</p>');
+            }
+        });
+    });
+
+    // Очистка логов
+    $('#clearLogs').click(function () {
+        $.post('/clear_logs')
+            .done(function (response) {
+                alert(response.message);
+                updateLogs([]);
+                $('#logs').html('<p class="text-muted">Журнал пуст</p>');
+            })
+            .fail(function () {
+                alert('Ошибка при очистке журнала. Попробуйте снова.');
+            });
+    });
+
+    function loadLogs(limit) {
+        $.getJSON(`/logs?limit=${limit}`, function (logs) {
+            updateLogs(logs);
+        });
+    }
+</script>
+</body>
+</html>

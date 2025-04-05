@@ -1,0 +1,78 @@
+body {
+    background-color: #343a40;
+    color: #ffffff; /* Цвет текста по умолчанию */
+}
+
+.container {
+    margin-top: 30px;
+}
+
+.result {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #495057;
+    border-radius: 5px;
+    background-color: #495057;
+    color: #ffffff; /* Добавлено для ясности текста в результатах */
+}
+
+table {
+    width: 100%;
+    margin-top: 10px;
+    border-collapse: collapse;
+}
+
+th, td {
+    text-align: center;
+    padding: 10px;
+    border: 1px solid #6c757d;
+}
+
+th {
+    background-color: #007bff;
+    color: #ffffff; /* Цвет заголовка таблицы */
+}
+
+tr:nth-child(even) {
+    background-color: #6c757d; /* Цвет для четных строк */
+}
+
+tr:hover {
+    background-color: #5a6268; /* Цвет при наведении на строку */
+}
+
+.input-group-text {
+    background-color: #6c757d;
+    color: #ffffff; /* Цвет текста в input-group */
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff; /* Цвет кнопок */
+}
+
+.btn-primary:hover {
+    background-color: #0056b3; /* Цвет кнопок при наведении */
+    border-color: #0056b3;
+}
+
+/* Добавлено для журнала событий */
+#logs {
+    background-color: #495057; /* Темный фон для контейнера журнала */
+    color: #ffffff; /* Цвет текста для журнала событий */
+    max-height: 800px; /* Ограничение высоты, если необходимо */
+    overflow-y: auto; /* Прокрутка, если содержимое превышает высоту */
+}
+
+.log-entry {
+    margin-bottom: 0.5rem; /* Отступ между записями лога */
+}
+.card-body {
+    background-color: #495057; /* Темный фон для карточек */
+    color: #ffffff; /* Цвет текста внутри карточек */
+}
+.container .form-control  {
+    background-color: #495057; /* Темный фон для input-group */
+    color: #ffffff !important; /* ��вет текста внутри input-group */
+
+}

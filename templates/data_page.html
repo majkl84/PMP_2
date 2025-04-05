@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+{% include 'header.html' %}
+<body>
+{% include 'navbar.html' %}
+<div class="container">
+    <h1 class="text-center">Запрос исторических данных и Проверка алгоритма</h1>
+
+    <h2 class="mt-5">Запрос исторических данных</h2>
+    <form id="historicalDataForm">
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" id="dateStart"
+                   placeholder="Дата и время начала (ДД.ММ.ГГГГ ЧЧ:ММ:СС)" required>
+            <input type="text" class="form-control" id="dateStop"
+                   placeholder="Дата и время окончания (ДД.ММ.ГГГГ ЧЧ:ММ:СС)" required>
+            <button type="submit" class="btn btn-primary">Запрос в БД</button>
+        </div>
+    </form>
+
+    <h2 class="mt-5">Проверка алгоритма</h2>
+    <form id="checkDataForm">
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" id="inputId1" placeholder="Сырые ID" required>
+            <input type="text" class="form-control" id="inputId2" placeholder="ID из БД" required>
+            <button type="submit" class="btn btn-primary">Проверить</button>
+        </div>
+    </form>
+
+    <div id="historicalResult" class="result"></div>
+    <div id="differenceResult" class="result"></div>
+</div>
+
+<script src="{{ url_for('static', filename='js/jquery-3.7.1.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jquery-ui.js') }}"></script>
+<script>
+    $(function () {
+        $.datepicker.setDefaults($.datepicker.regional["ru"]);
+        $("#dateStart, #dateStop").datepicker({
+            dateFormat: "dd.mm.yy",
+            firstDay: 1,
+            onSelect: function (dateText) {
+                $(this).val(dateText + (this.id === "dateStop" ? ' 23:59:59' : ' 00:00:00'));
+            }
+        });
+    });
+
+    function displayHistoricalResults(data) {
+        let html = '<table class="table table-striped"><thead><tr>';
+        html += '<th>ID</th><th>Фаза A</th><th>Фаза B</th><th>Фаза C</th><th>Дата Время</th>';
+        html += '</tr></thead><tbody>';
+
+        if (data && data.length > 0) {
+            data.forEach(row => {
+                html += '<tr>';
+                html += `<td>${row.id}</td><td>${row.L1history}</td><td>${row.L2history}</td><td>${row.L3history}</td><td>${row.timestamp}</td>`;
+                html += '</tr>';
+            });
+        } else {
+            html += '<tr><td colspan="5">Нет данных</td></tr>';
+        }
+
+        html += '</tbody></table>';
+        document.getElementById("historicalResult").innerHTML = html;
+    }
+
+    function sendRequest(url, body, callback) {
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        })
+            .then(response => response.json())
+            .then(callback)
+            .catch(error => console.error('Ошибка:', error));
+    }
+
+    document.getElementById("historicalDataForm").onsubmit = function (event) {
+        event.preventDefault();
+        const dateStart = document.getElementById("dateStart").value;
+        const dateStop = document.getElementById("dateStop").value;
+
+        // Преобразуем даты в формат ISO 8601 без смещения
+        const startDateTime = dateStart.split(' ').map((item, index) => {
+            return index === 0 ? item.split('.').reverse().join('-') : item;
+        }).join('T') + 'Z'; // Используем 'Z' для UTC
+
+        const stopDateTime = dateStop.split(' ').map((item, index) => {
+            return index === 0 ? item.split('.').reverse().join('-') : item;
+        }).join('T') + 'Z'; // Используем 'Z' для UTC
+
+        sendRequest('/data_page', {dateStart: startDateTime, dateStop: stopDateTime}, displayHistoricalResults);
+    };
+
+    document.getElementById("checkDataForm").onsubmit = function (event) {
+        event.preventDefault();
+        const id1 = document.getElementById("inputId1").value;
+        const id2 = document.getElementById("inputId2").value;
+
+        sendRequest('/data_page', {inputId1: id1, inputId2: id2}, function (data) {
+            if (data.result1 && data.result2) {
+                const resultHtml = `
+                        <h5>Результаты проверки</h5>
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Фаза A</th>
+                                    <th>Фаза B</th>
+                                    <th>Фаза C</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${data.result1.id}</td>
+                                    <td>${data.result1.L1history}</td>
+                                    <td>${data.result1.L2history}</td>
+                                    <td>${data.result1.L3history}</td>
+                                </tr>
+                                <tr>
+                                    <td>${data.result2.id}</td>
+                                    <td>${data.result2.L1history}</td>
+                                    <td>${data.result2.L2history}</td>
+                                    <td>${data.result2.L3history}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <h5>Разница</h5>
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>L1</th>
+                                    <th>L2</th>
+                                    <th>L3</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${data.differences.L1Difference}</td>
+                                    <td>${data.differences.L2Difference}</td>
+                                    <td>${data.differences.L3Difference}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                document.getElementById("differenceResult").innerHTML = resultHtml;
+            } else {
+                console.error('Ошибка: недостаточно данных для вычисления разницы.');
+            }
+        });
+    };
+</script>
+</body>
+</html>
