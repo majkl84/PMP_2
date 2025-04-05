@@ -13,7 +13,7 @@ VENV_DIR="$PROJECT_DIR/venv"
 # Скачивание и распаковка
 cd /tmp
 wget "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O pmp.tar.gz
-tar xvfz pmp.tar.gz
+tar xfz pmp.tar.gz
 cd "$PMP_VERSION"
 
 # Определение версии Python из pyproject.toml
@@ -22,16 +22,15 @@ PYTHON_VERSION=$(grep -oP 'requires-python\s*=\s*">=\K[0-9]+\.[0-9]+' pyproject.
     exit 1;
 })
 
-# Установка uv
+# Установка uv (если не установлен)
 if ! command -v uv &> /dev/null; then
     curl -LsS https://astral.sh/uv/install.sh | sh
     export PATH="$HOME/.cargo/bin:$PATH"
 fi
 
-# Проверка и установка нужной версии Python
+# Установка нужной версии Python (если отсутствует)
 if ! uv python find "${PYTHON_VERSION}" &>/dev/null; then
-    echo "Установка Python ${PYTHON_VERSION} через uv..."
-    uv python install "${PYTHON_VERSION}"
+    uv python install "${PYTHON_VERSION}" --install-pip
 fi
 
 # Копирование файлов (сохранение прав)
@@ -44,14 +43,11 @@ if ! id pmp &>/dev/null; then
 fi
 chown -R pmp:pmp "$PROJECT_DIR"
 
-# Создание venv с нужной версией Python
-uv venv -p "$(uv python find ${PYTHON_VERSION})" "$VENV_DIR" || {
-    echo "Ошибка: Не удалось создать venv";
-    exit 1;
-}
+# Создание venv с нужной версией Python и pip
+uv venv -p "$(uv python find ${PYTHON_VERSION})" "$VENV_DIR" --install-pip
 
 # Установка зависимостей из pyproject.toml
-"$VENV_DIR/bin/pip" install --no-deps -e "$PROJECT_DIR" || {
+uv pip install -e "$PROJECT_DIR" || {
     echo "Ошибка: Не удалось установить зависимости";
     exit 1;
 }
@@ -82,7 +78,6 @@ systemctl start pmp.service
 # Проверка
 echo "Установка завершена. Проверка:"
 echo "Версия Python: $("$VENV_DIR/bin/python" --version 2>&1)"
-echo "Требуемая версия: >=${PYTHON_VERSION}"
 systemctl status pmp.service --no-pager
 
 # После успешного запуска сервиса
