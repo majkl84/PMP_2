@@ -78,7 +78,9 @@ echo "Установка зависимостей Python..."
 cd "$PROJECT_DIR"
 if [ -f "pyproject.toml" ]; then
     # Создаем виртуальное окружение
-    uv venv .venv && .venv/bin/uv pip install -e .
+    uv venv
+
+    uv pip install -e .
 
 else
     echo "Ошибка: файл pyproject.toml не найден в $PROJECT_DIR"
