@@ -25,7 +25,7 @@ fi
 
 # Копирование файлов (сохранение прав)
 mkdir -p "$PROJECT_DIR"
-find . -mindepth 1 -not -name 'power_manager.db' -exec cp --parents '{}' "$PROJECT_DIR/" \;
+find . -mindepth 1 \( -name 'power_manager.db' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp --parents '{}' "$PROJECT_DIR/" \;
 #cp -r . "$PROJECT_DIR/"
 
 # Создание системного пользователя
