@@ -1,18 +1,19 @@
 from pymodbus.client import ModbusTcpClient
 # from custom_components import log_message
+from config import MODBUS_REGISTER_MAP
 
 
-# Описание регистров
-MODBUS_REGISTER_MAP = {
-    "Voltage": (0, "uint16be", 0.1),  # Напряжение (V)
-    "CurrentLow": (1, "uint16be", 0.001),  # Ток (A) - младшие 16 бит
-    "PowerLow": (3, "uint16be", 1),  # Мощность (W) - младшие 16 бит
-    "EnergyLow": (5, "uint16be", 1),  # Энергия (Wh) - младшие 16 бит
-    "EnergyHigh": (6, "uint16be", 1),  # Энергия (Wh) - старшие 16 бит
-    "Frequency": (7, "uint16be", 0.1),  # Частота (Hz)
-    "PowerFactor": (8, "uint16be", 0.001),  # Коэффициент мощности
-    "AlarmStatus": (9, "int16be", 1)  # Статус тревоги
-}
+# # Описание регистров
+# MODBUS_REGISTER_MAP = {
+#     "Voltage": (0, "uint16be", 0.1),  # Напряжение (V)
+#     "CurrentLow": (1, "uint16be", 0.001),  # Ток (A) - младшие 16 бит
+#     "PowerLow": (3, "uint16be", 1),  # Мощность (W) - младшие 16 бит
+#     "EnergyLow": (5, "uint16be", 1),  # Энергия (Wh) - младшие 16 бит
+#     "EnergyHigh": (6, "uint16be", 1),  # Энергия (Wh) - старшие 16 бит
+#     "Frequency": (7, "uint16be", 0.1),  # Частота (Hz)
+#     "PowerFactor": (8, "uint16be", 0.001),  # Коэффициент мощности
+#     "AlarmStatus": (9, "int16be", 1)  # Статус тревоги
+# }
 
 # Чтение данных из Modbus
 def read_modbus_data(host, unit_id):
