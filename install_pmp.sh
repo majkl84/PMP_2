@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Конфигурация
 PMP_VERSION="PMP_2-PMP_R.1.0.0"
-PROJECT_DIR="/opt/pmp"  # Изменено на стандартную директорию
+PROJECT_DIR="/opt/pmp"
 VENV_DIR="$PROJECT_DIR/.venv"
 TMP_DIR=$(mktemp -d)
 
@@ -19,31 +19,84 @@ error_exit() {
     exit 1
 }
 
-# Определяем требуемую версию Python из pyproject.toml
-get_python_version() {
+# Функция точного определения требуемой версии Python
+get_required_python() {
     local toml_file="$1"
-    if [ ! -f "$toml_file" ]; then
-        error_exit "Файл $toml_file не найден"
-    fi
+    [ -f "$toml_file" ] || error_exit "Файл $toml_file не найден"
 
-    local version
-    version=$(grep -E '^requires-python' "$toml_file" | cut -d'"' -f2 | sed 's/>=//')
+    # Извлекаем строку requires-python
+    local requirement
+    requirement=$(grep -E '^requires-python' "$toml_file" | cut -d'"' -f2 | cut -d"'" -f2)
 
-    if [ -z "$version" ]; then
-        echo "3.12"  # Версия по умолчанию
-    else
-        echo "$version"
-    fi
+    # Если не указано, возвращаем пустую строку
+    [ -z "$requirement" ] && return 0
+
+    # Возвращаем полное условие (например ">=3.12")
+    echo "$requirement"
 }
 
-# Установка нужной версии Python
+# Проверка соответствия версии Python
+check_python_version() {
+    local requirement="$1"
+    local python_cmd="${2:-python3}"
+
+    echo "Проверка Python (требуется $requirement)..."
+
+    # Запускаем Python-код для проверки версии
+    "$python_cmd" -c "
+import sys
+import re
+
+requirement = '$requirement'
+if not requirement:
+    sys.exit(0)
+
+# Парсим условие
+op = re.match(r'^([>=<~!]+)', requirement)
+op = op.group(1) if op else '=='
+ver = requirement.replace(op, '')
+
+# Преобразуем версию в кортеж
+try:
+    required_ver = tuple(map(int, ver.split('.')))
+except:
+    sys.exit(1)
+
+current_ver = (sys.version_info.major, sys.version_info.minor)
+
+# Сравниваем в зависимости от оператора
+if op == '>=':
+    sys.exit(0) if current_ver >= required_ver else sys.exit(1)
+elif op == '>':
+    sys.exit(0) if current_ver > required_ver else sys.exit(1)
+elif op == '<=':
+    sys.exit(0) if current_ver <= required_ver else sys.exit(1)
+elif op == '<':
+    sys.exit(0) if current_ver < required_ver else sys.exit(1)
+elif op == '~=':
+    sys.exit(0) if current_ver >= required_ver and current_ver[0] == required_ver[0] else sys.exit(1)
+else:  # == или нет оператора
+    sys.exit(0) if current_ver == required_ver else sys.exit(1)
+    " || {
+        local current_ver=$("$python_cmd" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+        error_exit "Версия Python $current_ver не соответствует требованию $requirement"
+    }
+}
+
+# Установка Python (если нужно)
 install_python() {
-    local required_version=$1
-    if ! command -v "python$required_version" >/dev/null; then
-        echo "Установка Python $required_version..."
-        apt-get update && apt-get install -y "python$required_version" || {
-            error_exit "Не удалось установить Python $required_version"
+    local version="$1"
+    echo "Попытка установки Python $version..."
+
+    if grep -q 'Debian' /etc/os-release || grep -q 'Ubuntu' /etc/os-release; then
+        apt-get install -y software-properties-common
+        add-apt-repository -y ppa:deadsnakes/ppa
+        apt-get update
+        apt-get install -y "python$version" "python$version-venv" || {
+            error_exit "Не удалось установить Python $version"
         }
+    else
+        error_exit "Автоматическая установка поддерживается только для Debian/Ubuntu"
     fi
 }
 
@@ -59,10 +112,20 @@ main() {
     tar xfz pmp.tar.gz
     cd "$PMP_VERSION" || error_exit "Не найдена директория $PMP_VERSION"
 
-    # Определение версии Python
-    PYTHON_VERSION=$(get_python_version "pyproject.toml")
-    echo "Требуется Python $PYTHON_VERSION"
-    install_python "$PYTHON_VERSION"
+    # Определяем требуемую версию Python
+    PYTHON_REQUIREMENT=$(get_required_python "pyproject.toml")
+    MIN_PYTHON=$(echo "$PYTHON_REQUIREMENT" | sed -E 's/^[>=<~!]+//')
+    MIN_PYTHON=${MIN_PYTHON:-"3.8"}  # Значение по умолчанию
+
+    # Пытаемся использовать системный Python
+    PYTHON_CMD="python3"
+    if [ -n "$PYTHON_REQUIREMENT" ]; then
+        if ! check_python_version "$PYTHON_REQUIREMENT" "$PYTHON_CMD"; then
+            install_python "$MIN_PYTHON"
+            PYTHON_CMD="python${MIN_PYTHON}"
+            check_python_version "$PYTHON_REQUIREMENT" "$PYTHON_CMD"
+        fi
+    fi
 
     # Копирование файлов
     echo "Установка в $PROJECT_DIR..."
@@ -73,7 +136,7 @@ main() {
 
     # Создание virtualenv
     echo "Создание virtualenv..."
-    "python$PYTHON_VERSION" -m venv "$VENV_DIR" || error_exit "Ошибка создания virtualenv"
+    "$PYTHON_CMD" -m venv "$VENV_DIR" || error_exit "Ошибка создания virtualenv"
 
     # Установка зависимостей
     echo "Установка зависимостей..."
