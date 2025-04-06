@@ -56,10 +56,6 @@ fi
 chown -R pmp:pmp "$PROJECT_DIR"
 chmod -R 755 "$PROJECT_DIR"
 
-# Убедимся, что pmp имеет доступ к директории с uv
-chmod 755 /usr/local/bin
-chmod 755 /usr/local/bin/uv
-
 # Если app.py требует права на выполнение
 chmod 755 "$PROJECT_DIR/app.py"
 
