@@ -1,0 +1,1 @@
+ bash -c "$(curl -fsSL https://raw.githubusercontent.com/majkl84/PMP_2/main/install_pmp.sh)"
