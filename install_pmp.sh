@@ -62,8 +62,8 @@ main() {
     echo "Установка зависимостей..."
     source "$VENV_DIR/bin/activate"
     pip install --upgrade pip
-
-    [ -f "pyproject.toml" ] && pip install -e .
+    [ -f "requirements.txt" ] && pip install -r requirements.txt
+#    [ -f "pyproject.toml" ] && pip install -e .
 
     # Настройка пользователя
     if ! id pmp &>/dev/null; then
