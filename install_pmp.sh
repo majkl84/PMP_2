@@ -42,13 +42,6 @@ if ! command -v uv &> /dev/null; then
     echo "uv успешно установлен"
 fi
 
-# Убедимся, что /usr/local/bin/uv существует и имеет правильные разрешения
-if [ -f "/usr/local/bin/uv" ]; then
-    chmod 755 /usr/local/bin/uv
-else
-    echo "Ошибка: /usr/local/bin/uv не существует после установки"
-    exit 1
-fi
 
 # Копирование файлов (сохранение прав)
 mkdir -p "$PROJECT_DIR"
