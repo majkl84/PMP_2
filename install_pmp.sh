@@ -13,57 +13,96 @@ PROJECT_DIR="/opt/pmp"
 VENV_DIR="$PROJECT_DIR/.venv"
 TMP_DIR=$(mktemp -d)
 
-# Функция поиска доступного Python
-find_python() {
-    # Проверяем возможные варианты Python в порядке предпочтения
-    for py in python3.12 python3.11 python3.10 python3.9 python3 python; do
-        if command -v "$py" >/dev/null; then
-            echo "$py"
-            return 0
-        fi
-    done
-    error_exit "Не найден ни один интерпретатор Python"
-}
+# Цвета для вывода
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# Функция для выхода с ошибкой
 error_exit() {
-    echo "ОШИБКА: $1" >&2
+    echo -e "${RED}ОШИБКА: $1${NC}" >&2
     exit 1
 }
 
-# Основной процесс установки
+info_msg() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+# Поиск любого доступного Python (3.6+)
+find_any_python() {
+    # Проверяем стандартные имена python
+    for py in python3 python; do
+        if command -v "$py" >/dev/null; then
+            # Проверяем что это Python 3.x
+            if "$py" -c "import sys; sys.exit(0) if sys.version_info[0] == 3 else sys.exit(1)"; then
+                echo "$py"
+                return 0
+            fi
+        fi
+    done
+    error_exit "Не найден интерпретатор Python 3.x"
+}
+
+# Устанавливаем пакет, игнорируя требования Python
+install_ignore_python_requires() {
+    local pkg_dir="$1"
+    cd "$pkg_dir" || error_exit "Не удалось перейти в $pkg_dir"
+
+    # Создаем временный setup.py для принудительной установки
+    cat > setup.py <<EOF
+from setuptools import setup
+
+setup(
+    name="pmp-forced-install",
+    version="1.0.0",
+    install_requires=open('requirements.txt').read().splitlines(),
+)
+EOF
+
+    pip install --no-deps -e . || {
+        warn_msg "Не удалось установить в режиме разработки, пробуем обычную установку"
+        pip install .
+    }
+}
+
 main() {
     # Проверка прав
     [[ $(id -u) -eq 0 ]] || error_exit "Требуются права root"
 
     # Поиск Python
-    PYTHON_CMD=$(find_python)
-    echo "Используем Python: $($PYTHON_CMD --version 2>&1)"
+    PYTHON_CMD=$(find_any_python)
+    PYTHON_VERSION=$("$PYTHON_CMD" --version 2>&1)
+    info_msg "Используем Python: $PYTHON_VERSION"
 
     # Скачивание и распаковка
-    echo "Загрузка PMP..."
+    info_msg "Загрузка PMP..."
     cd "$TMP_DIR" || error_exit "Не удалось перейти в $TMP_DIR"
-    wget -q "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O pmp.tar.gz
+    curl -fsSL "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -o pmp.tar.gz
     tar xfz pmp.tar.gz
-    cd "$PMP_VERSION" || error_exit "Не найдена директория $PMP_VERSION"
 
     # Копирование файлов
-    echo "Установка в $PROJECT_DIR..."
+    info_msg "Установка в $PROJECT_DIR..."
     mkdir -p "$PROJECT_DIR"
     find . -mindepth 1 \( -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o \
         -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
     cd "$PROJECT_DIR" || error_exit "Не удалось перейти в $PROJECT_DIR"
 
     # Создание virtualenv
-    echo "Создание virtualenv..."
+    info_msg "Создание virtualenv..."
     "$PYTHON_CMD" -m venv "$VENV_DIR" || error_exit "Ошибка создания virtualenv"
 
-    # Установка зависимостей
-    echo "Установка зависимостей..."
+    # Установка зависимостей (игнорируя требования Python)
+    info_msg "Установка зависимостей..."
     source "$VENV_DIR/bin/activate"
     pip install --upgrade pip
-    [ -f "requirements.txt" ] && pip install -r requirements.txt
-#    [ -f "pyproject.toml" ] && pip install -e .
+    pip install wheel
+
+    if [ -f "$PROJECT_DIR/requirements.txt" ]; then
+        pip install -r "$PROJECT_DIR/requirements.txt"
+    fi
+
+    # Принудительная установка самого пакета
+    install_ignore_python_requires "$PROJECT_DIR"
 
     # Настройка пользователя
     if ! id pmp &>/dev/null; then
@@ -72,7 +111,7 @@ main() {
     chown -R pmp:pmp "$PROJECT_DIR"
 
     # Настройка systemd
-    echo "Настройка systemd сервиса..."
+    info_msg "Настройка systemd сервиса..."
     cat > /etc/systemd/system/pmp.service <<EOF
 [Unit]
 Description=PMP Service
@@ -97,7 +136,7 @@ EOF
 
     # Проверка
     if systemctl is-active --quiet pmp.service; then
-        echo "Установка успешно завершена!"
+        info_msg "Установка успешно завершена!"
         rm -rf "$TMP_DIR"
     else
         error_exit "Сервис не запущен. Проверьте логи: journalctl -u pmp.service -b"
