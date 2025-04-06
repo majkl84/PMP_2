@@ -26,20 +26,6 @@ fi
 mkdir -p "$PROJECT_DIR"
 find . -mindepth 1 \(  -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
 
-# Установка зависимостей проекта
-echo "Установка зависимостей Python..."
-cd "$PROJECT_DIR"
-if [ -f "pyproject.toml" ]; then
-    # Явно указываем путь к .venv
-    uv venv "$PROJECT_DIR/.venv"
-
-    # Используем uv из созданного окружения
-    "$PROJECT_DIR/.venv/bin/uv" pip install -e .
-else
-    echo "Ошибка: файл pyproject.toml не найден в $PROJECT_DIR"
-    exit 1
-fi
-
 # Создание системного пользователя
 if ! id pmp &>/dev/null; then
     useradd -rs /bin/false pmp
@@ -59,6 +45,7 @@ After=network.target
 User=pmp
 Group=pmp
 WorkingDirectory=$PROJECT_DIR
+ExecStartPre=/bin/bash -c "cd $PROJECT_DIR && uv venv .venv && uv pip install -e ."
 ExecStart=$PROJECT_DIR/.venv/bin/python $PROJECT_DIR/app.py
 Restart=always
 RestartSec=5
