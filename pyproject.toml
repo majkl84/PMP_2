@@ -2,7 +2,7 @@
 name = "pmp-2"
 version = "1.0.0"
 description = "Панель мониторинга питанием для трех PZEM-016 220В 100А"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "blinker==1.9.0",
     "click==8.1.8",
