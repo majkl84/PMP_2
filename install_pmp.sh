@@ -59,7 +59,7 @@ After=network.target
 User=pmp
 Group=pmp
 WorkingDirectory=$PROJECT_DIR
-ExecStart=uv run $PROJECT_DIR/app.py
+ExecStart=/usr/local/bin/uv run $PROJECT_DIR/app.py
 Restart=always
 RestartSec=5
 
