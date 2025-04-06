@@ -17,10 +17,37 @@ cd "$PMP_VERSION"
 
 # Установка uv в системную директорию
 if ! command -v uv &> /dev/null; then
-    curl -LsS https://astral.sh/uv/install.sh | sh
-    # Переносим uv в /usr/local/bin чтобы был доступен всем пользователям
-    mv "$HOME/.cargo/bin/uv" /usr/local/bin/
-    export PATH="/usr/local/bin:$PATH"
+    echo "Установка uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Проверяем, куда установился uv
+    UV_PATH=$(which uv)
+    if [ -z "$UV_PATH" ]; then
+        echo "Ошибка: uv не был установлен корректно"
+        exit 1
+    fi
+
+    # Если uv установился не в /usr/local/bin, копируем его туда
+    if [ "$UV_PATH" != "/usr/local/bin/uv" ]; then
+        echo "Копирование uv в /usr/local/bin..."
+        cp "$UV_PATH" /usr/local/bin/uv
+    fi
+
+    # Проверяем, что uv теперь доступен
+    if ! command -v uv &> /dev/null; then
+        echo "Ошибка: uv не доступен после установки"
+        exit 1
+    fi
+
+    echo "uv успешно установлен"
+fi
+
+# Убедимся, что /usr/local/bin/uv существует и имеет правильные разрешения
+if [ -f "/usr/local/bin/uv" ]; then
+    chmod 755 /usr/local/bin/uv
+else
+    echo "Ошибка: /usr/local/bin/uv не существует после установки"
+    exit 1
 fi
 
 # Копирование файлов (сохранение прав)
