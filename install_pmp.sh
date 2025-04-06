@@ -30,11 +30,11 @@ find . -mindepth 1 \(  -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LI
 echo "Установка зависимостей Python..."
 cd "$PROJECT_DIR"
 if [ -f "pyproject.toml" ]; then
-    # Создаем виртуальное окружение
-    uv venv
+    # Явно указываем путь к .venv
+    uv venv "$PROJECT_DIR/.venv"
 
-    uv pip install -e .
-
+    # Используем uv из созданного окружения
+    "$PROJECT_DIR/.venv/bin/uv" pip install -e .
 else
     echo "Ошибка: файл pyproject.toml не найден в $PROJECT_DIR"
     exit 1
