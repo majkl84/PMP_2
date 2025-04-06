@@ -43,7 +43,7 @@ tar xfz pmp.tar.gz
 cd "$PMP_VERSION"
 # Копирование файлов (сохранение прав)
 mkdir -p "$PROJECT_DIR"
-find . -mindepth 1 \(  -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
+find . -mindepth 1 \( -name 'READMI.MD' -o -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
 
 # Установка зависимостей проекта
 echo "Установка зависимостей Python..."
