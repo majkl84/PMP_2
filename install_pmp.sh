@@ -46,7 +46,7 @@ User=pmp
 Group=pmp
 WorkingDirectory=$PROJECT_DIR
 ExecStartPre=/bin/bash -c "cd $PROJECT_DIR && uv venv .venv && uv pip install -e ."
-ExecStart=$PROJECT_DIR/.venv/bin/python $PROJECT_DIR/app.py
+ExecStart=uv run $PROJECT_DIR/app.py
 Restart=always
 RestartSec=5
 
