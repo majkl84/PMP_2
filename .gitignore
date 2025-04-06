@@ -7,5 +7,4 @@ build/
 power_manager.db
 .idea
 LICENSE
-requirements.txt
 uv.lock

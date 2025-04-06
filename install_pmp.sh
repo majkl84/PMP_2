@@ -1,5 +1,5 @@
 #!/bin/bash
-#---------------------------------------------------------------------
+#--------------------------------------------------------------------
 # Script to Install PMP on Linux
 # Developed by Majkl84 in 2025-04
 #---------------------------------------------------------------------
@@ -8,6 +8,8 @@
 set -e  # Прерывать при ошибках
 PMP_VERSION="PMP_2-PMP_R.1.0.0"
 PROJECT_DIR="/usr/bin/pmp"
+VENV_DIR="$PROJECT_DIR/.venv"
+
 
 # Скачивание и распаковка
 cd /tmp
@@ -69,6 +71,7 @@ if ! command -v uv &> /dev/null; then
     echo "uv успешно установлен в /usr/local/bin/"
 fi
 
+
 # Копирование файлов (сохранение прав)
 mkdir -p "$PROJECT_DIR"
 find . -mindepth 1 \(  -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
@@ -91,16 +94,12 @@ fi
 if ! id pmp &>/dev/null; then
     useradd -rs /bin/false pmp
 fi
-
-# Установка прав доступа
 chown -R pmp:pmp "$PROJECT_DIR"
-chmod -R 755 "$PROJECT_DIR"
 
-# Если app.py требует права на выполнение
-chmod 755 "$PROJECT_DIR/app.py"
 
-# Если есть конфигурационные файлы, которые должны быть доступны только для чтения
-find "$PROJECT_DIR" -type f -name "*.conf" -exec chmod 644 {} \;
+
+# Установка зависимостей
+uv pip install -r "$PROJECT_DIR/requirements.txt"
 
 # Systemd сервис
 cat > /etc/systemd/system/pmp.service <<EOF
@@ -112,7 +111,7 @@ After=network.target
 User=pmp
 Group=pmp
 WorkingDirectory=$PROJECT_DIR
-ExecStart=/usr/local/bin/uv run $PROJECT_DIR/app.py
+ExecStart=$VENV_DIR/bin/python $PROJECT_DIR/app.py
 Restart=always
 RestartSec=5
 
