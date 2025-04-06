@@ -33,7 +33,7 @@ echo "Загрузка PMP..."
 cd /tmp || exit 1
 wget -q "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O pmp.tar.gz
 tar xfz pmp.tar.gz
-
+cd "$PMP_VERSION"
 # Копирование файлов
 echo "Копирование файлов в $PROJECT_DIR..."
 mkdir -p "$PROJECT_DIR"
