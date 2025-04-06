@@ -9,66 +9,38 @@ set -e  # Прерывать при ошибках
 PMP_VERSION="PMP_2-PMP_R.1.0.0"
 PROJECT_DIR="/usr/bin/pmp"
 
+# 1. Установка uv
+echo "Установка uv..."
+curl -LsSf https://astral.sh/uv/install.sh | sh
+if [ $? -ne 0 ]; then
+    echo "Ошибка при установке uv."
+    exit 1
+fi
+
+# 2. Добавление uv в PATH
+echo "Добавление uv в PATH..."
+if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+    source ~/.bashrc
+    echo "PATH обновлен."
+else
+    echo "uv уже добавлен в PATH."
+fi
+
+# 3. Проверка установки
+echo "Проверка установки uv..."
+if command -v uv &>/dev/null; then
+    echo "uv установлен успешно. Версия: $(uv --version)"
+else
+    echo "uv не найден. Убедитесь, что установка завершилась успешно."
+    exit 1
+fi
+
 # Скачивание и распаковка
 cd /tmp
 wget "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O pmp.tar.gz
 tar xfz pmp.tar.gz
 cd "$PMP_VERSION"
-
-# Установка uv в системную директорию
-if ! command -v uv &> /dev/null; then
-    echo "Установка uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-
-    # Проверяем, куда установился uv
-    UV_PATH=$(command -v uv || echo "")
-    if [ -z "$UV_PATH" ]; then
-        # Проверяем стандартные пути установки
-        if [ -f "$HOME/.local/bin/uv" ]; then
-            UV_PATH="$HOME/.local/bin/uv"
-        else
-            echo "Ошибка: uv не был установлен корректно"
-            exit 1
-        fi
-    fi
-
-    # Если uv установился не в /usr/local/bin, копируем его туда
-    if [ "$UV_PATH" != "/usr/local/bin/uv" ]; then
-        echo "Копирование uv в /usr/local/bin..."
-
-        # Проверяем права на запись
-        if [ ! -w "/usr/local/bin" ]; then
-            echo "Требуются права sudo для копирования в /usr/local/bin"
-            sudo cp "$UV_PATH" /usr/local/bin/uv || {
-                echo "Ошибка: не удалось скопировать uv в /usr/local/bin"
-                exit 1
-            }
-        else
-            cp "$UV_PATH" /usr/local/bin/uv || {
-                echo "Ошибка: не удалось скопировать uv"
-                exit 1
-            }
-        fi
-
-        # Проверяем, что копирование прошло успешно
-        if [ ! -f "/usr/local/bin/uv" ]; then
-            echo "Ошибка: uv не был скопирован в /usr/local/bin"
-            exit 1
-        fi
-
-        # Устанавливаем права на исполнение
-        sudo chmod +x /usr/local/bin/uv
-    fi
-
-    # Проверяем, что uv теперь доступен
-    if ! command -v uv &> /dev/null; then
-        echo "Ошибка: uv не доступен после установки"
-        exit 1
-    fi
-
-    echo "uv успешно установлен в /usr/local/bin/"
-fi
-
 # Копирование файлов (сохранение прав)
 mkdir -p "$PROJECT_DIR"
 find . -mindepth 1 \(  -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
@@ -92,16 +64,6 @@ if ! id pmp &>/dev/null; then
     useradd -rs /bin/false pmp
 fi
 
-# Установка прав доступа
-chown -R pmp:pmp "$PROJECT_DIR"
-chmod -R 755 "$PROJECT_DIR"
-
-# Если app.py требует права на выполнение
-chmod 755 "$PROJECT_DIR/app.py"
-
-# Если есть конфигурационные файлы, которые должны быть доступны только для чтения
-find "$PROJECT_DIR" -type f -name "*.conf" -exec chmod 644 {} \;
-
 # Systemd сервис
 cat > /etc/systemd/system/pmp.service <<EOF
 [Unit]
@@ -109,10 +71,13 @@ Description=PMP Service
 After=network.target
 
 [Service]
-User=pmp
-Group=pmp
-WorkingDirectory=$PROJECT_DIR
-ExecStart=/usr/local/bin/uv run $PROJECT_DIR/app.py
+User=root
+Group=root
+WorkingDirectory=/usr/bin/pmp
+Environment="PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONPATH=/usr/bin/pmp"
+Environment="HOME=/root"
+ExecStart=/root/.local/bin/uv run /usr/bin/pmp/app.py
 Restart=always
 RestartSec=5
 
