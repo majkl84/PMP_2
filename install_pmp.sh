@@ -69,16 +69,29 @@ if ! command -v uv &> /dev/null; then
     echo "uv успешно установлен в /usr/local/bin/"
 fi
 
-
 # Копирование файлов (сохранение прав)
 mkdir -p "$PROJECT_DIR"
 find . -mindepth 1 \(  -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
-#cp -r . "$PROJECT_DIR/"
+
+# Установка зависимостей проекта
+echo "Установка зависимостей Python..."
+cd "$PROJECT_DIR"
+if [ -f "pyproject.toml" ]; then
+    # Создаем виртуальное окружение
+    uv venv
+
+    uv pip install -e .
+
+else
+    echo "Ошибка: файл pyproject.toml не найден в $PROJECT_DIR"
+    exit 1
+fi
 
 # Создание системного пользователя
 if ! id pmp &>/dev/null; then
     useradd -rs /bin/false pmp
 fi
+
 # Установка прав доступа
 chown -R pmp:pmp "$PROJECT_DIR"
 chmod -R 755 "$PROJECT_DIR"
