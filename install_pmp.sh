@@ -15,11 +15,58 @@ wget "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O 
 tar xfz pmp.tar.gz
 cd "$PMP_VERSION"
 
-# Установка uv (минимальная версия)
+# Установка uv в системную директорию
 if ! command -v uv &> /dev/null; then
     echo "Установка uv..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.local/bin:$PATH"
+
+    # Проверяем, куда установился uv
+    UV_PATH=$(command -v uv || echo "")
+    if [ -z "$UV_PATH" ]; then
+        # Проверяем стандартные пути установки
+        if [ -f "$HOME/.local/bin/uv" ]; then
+            UV_PATH="$HOME/.local/bin/uv"
+        else
+            echo "Ошибка: uv не был установлен корректно"
+            exit 1
+        fi
+    fi
+
+    # Если uv установился не в /usr/local/bin, копируем его туда
+    if [ "$UV_PATH" != "/usr/local/bin/uv" ]; then
+        echo "Копирование uv в /usr/local/bin..."
+
+        # Проверяем права на запись
+        if [ ! -w "/usr/local/bin" ]; then
+            echo "Требуются права sudo для копирования в /usr/local/bin"
+            sudo cp "$UV_PATH" /usr/local/bin/uv || {
+                echo "Ошибка: не удалось скопировать uv в /usr/local/bin"
+                exit 1
+            }
+        else
+            cp "$UV_PATH" /usr/local/bin/uv || {
+                echo "Ошибка: не удалось скопировать uv"
+                exit 1
+            }
+        fi
+
+        # Проверяем, что копирование прошло успешно
+        if [ ! -f "/usr/local/bin/uv" ]; then
+            echo "Ошибка: uv не был скопирован в /usr/local/bin"
+            exit 1
+        fi
+
+        # Устанавливаем права на исполнение
+        sudo chmod +x /usr/local/bin/uv
+    fi
+
+    # Проверяем, что uv теперь доступен
+    if ! command -v uv &> /dev/null; then
+        echo "Ошибка: uv не доступен после установки"
+        exit 1
+    fi
+
+    echo "uv успешно установлен в /usr/local/bin/"
 fi
 
 # Копирование файлов (сохранение прав)
@@ -45,11 +92,17 @@ if ! id pmp &>/dev/null; then
     useradd -rs /bin/false pmp
 fi
 
-# Права (минимально необходимые)
+# Установка прав доступа
 chown -R pmp:pmp "$PROJECT_DIR"
+chmod -R 755 "$PROJECT_DIR"
+
+# Если app.py требует права на выполнение
 chmod 755 "$PROJECT_DIR/app.py"
 
-# Systemd сервис (чистая версия)
+# Если есть конфигурационные файлы, которые должны быть доступны только для чтения
+find "$PROJECT_DIR" -type f -name "*.conf" -exec chmod 644 {} \;
+
+# Systemd сервис
 cat > /etc/systemd/system/pmp.service <<EOF
 [Unit]
 Description=PMP Service
