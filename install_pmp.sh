@@ -1,3 +1,8 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+# PMP Installer with Global uv Installation
+#---------------------------------------------------------------------
+
 set -e
 PMP_VERSION="PMP_2-PMP_R.1.0.0"
 PROJECT_DIR="/usr/bin/pmp"
@@ -33,8 +38,8 @@ Description=PMP Service
 After=network.target
 
 [Service]
-User=pmp
-Group=pmp
+User=root
+Group=root
 WorkingDirectory=$PROJECT_DIR
 Environment="PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ExecStart=/root/.cargo/bin/uv run $PROJECT_DIR/app.py
