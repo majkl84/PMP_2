@@ -136,7 +136,7 @@ def process_and_publish_data():
         # Публикация общей мощности в MQTT
         publish_mqtt(MQTT_TOPICS["General-W"], str(round(total_power, 2)))
 
-        time.sleep(10)
+        time.sleep(10) # <- Здесь задана задержка между опросами (10 секунд)
 
 # Получение сырых данных из БД
 @app.route("/raw_data")
