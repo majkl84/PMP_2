@@ -1,14 +1,13 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 # Script to Install PMP on Linux
-# Developed by Majkl84 in 2025
+# Developed by Majkl84 in 2025-04
 #---------------------------------------------------------------------
 # https://github.com/majkl84/PMP_2
 
 set -e  # Прерывать при ошибках
 PMP_VERSION="PMP_2-PMP_R.1.0.0"
 PROJECT_DIR="/usr/bin/pmp"
-VENV_DIR="$PROJECT_DIR/venv"
 
 # Скачивание и распаковка
 cd /tmp
@@ -26,7 +25,8 @@ fi
 
 # Копирование файлов (сохранение прав)
 mkdir -p "$PROJECT_DIR"
-cp -r . "$PROJECT_DIR/"
+rsync -av --exclude='power_manager.db' . "$PROJECT_DIR/"
+#cp -r . "$PROJECT_DIR/"
 
 # Создание системного пользователя
 if ! id pmp &>/dev/null; then
