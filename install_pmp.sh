@@ -5,61 +5,91 @@
 #---------------------------------------------------------------------
 # https://github.com/majkl84/PMP_2
 
-set -e  # Сохранено без изменений
-PMP_VERSION="PMP_2-PMP_R.1.0.0"
-PROJECT_DIR="/usr/bin/pmp"
-VENV_DIR="$PROJECT_DIR/.venv"
+set -euo pipefail
 
-# Установка uv (оптимизированная проверка)
-install_uv() {
-    echo "Установка uv..."
-    if ! curl -LsSf https://astral.sh/uv/install.sh | sh; then
-        echo "Ошибка: uv не был установлен корректно" >&2
-        exit 1
+# Конфигурация
+PMP_VERSION="PMP_2-PMP_R.1.0.0"
+PROJECT_DIR="/opt/pmp"  # Изменено на стандартную директорию
+VENV_DIR="$PROJECT_DIR/.venv"
+TMP_DIR=$(mktemp -d)
+
+# Функция для выхода с ошибкой
+error_exit() {
+    echo "ОШИБКА: $1" >&2
+    exit 1
+}
+
+# Определяем требуемую версию Python из pyproject.toml
+get_python_version() {
+    local toml_file="$1"
+    if [ ! -f "$toml_file" ]; then
+        error_exit "Файл $toml_file не найден"
     fi
 
-    # Оптимизированный поиск uv
-    local UV_PATH
-    UV_PATH=$(command -v uv || find ~/.local/bin /usr/local/bin -name uv 2>/dev/null | head -1)
-    [ -z "$UV_PATH" ] && { echo "Ошибка: uv не найден" >&2; exit 1; }
+    local version
+    version=$(grep -E '^requires-python' "$toml_file" | cut -d'"' -f2 | sed 's/>=//')
 
-    # Копирование с минимальным количеством проверок
-    if [ "$UV_PATH" != "/usr/local/bin/uv" ]; then
-        echo "Копирование uv в /usr/local/bin..."
-        { cp "$UV_PATH" /usr/local/bin/uv || sudo cp "$UV_PATH" /usr/local/bin/uv; } &&
-        sudo chmod +x /usr/local/bin/uv
+    if [ -z "$version" ]; then
+        echo "3.12"  # Версия по умолчанию
+    else
+        echo "$version"
+    fi
+}
+
+# Установка нужной версии Python
+install_python() {
+    local required_version=$1
+    if ! command -v "python$required_version" >/dev/null; then
+        echo "Установка Python $required_version..."
+        apt-get update && apt-get install -y "python$required_version" || {
+            error_exit "Не удалось установить Python $required_version"
+        }
     fi
 }
 
 # Основной процесс установки
-{
-    # Скачивание и распаковка (без изменений)
-    cd /tmp || exit 1
+main() {
+    # Проверка прав
+    [[ $(id -u) -eq 0 ]] || error_exit "Требуются права root"
+
+    # Скачивание и распаковка
+    echo "Загрузка PMP..."
+    cd "$TMP_DIR" || error_exit "Не удалось перейти в $TMP_DIR"
     wget -q "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O pmp.tar.gz
     tar xfz pmp.tar.gz
-    cd "$PMP_VERSION" || exit 1
+    cd "$PMP_VERSION" || error_exit "Не найдена директория $PMP_VERSION"
 
-    # Установка uv
-    command -v uv >/dev/null || install_uv
+    # Определение версии Python
+    PYTHON_VERSION=$(get_python_version "pyproject.toml")
+    echo "Требуется Python $PYTHON_VERSION"
+    install_python "$PYTHON_VERSION"
 
-    # Копирование файлов (оптимизированный find)
-    echo "Копирование файлов..."
+    # Копирование файлов
+    echo "Установка в $PROJECT_DIR..."
     mkdir -p "$PROJECT_DIR"
     find . -mindepth 1 \( -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o \
         -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
+    cd "$PROJECT_DIR" || error_exit "Не удалось перейти в $PROJECT_DIR"
 
-    # Установка зависимостей (объединенные проверки)
-    cd "$PROJECT_DIR" || exit 1
-    [ -f "pyproject.toml" ] || { echo "Ошибка: pyproject.toml не найден" >&2; exit 1; }
+    # Создание virtualenv
+    echo "Создание virtualenv..."
+    "python$PYTHON_VERSION" -m venv "$VENV_DIR" || error_exit "Ошибка создания virtualenv"
 
-    uv venv &&
-    uv pip install -e . || { echo "Ошибка установки зависимостей" >&2; exit 1; }
+    # Установка зависимостей
+    echo "Установка зависимостей..."
+    source "$VENV_DIR/bin/activate"
+    pip install --upgrade pip
 
-    # Пользователь и права (без изменений)
-    id pmp &>/dev/null || useradd -rs /bin/false pmp
+    [ -f "pyproject.toml" ] && pip install -e .
+
+    # Настройка пользователя
+    if ! id pmp &>/dev/null; then
+        useradd -rs /bin/false pmp || error_exit "Ошибка создания пользователя pmp"
+    fi
     chown -R pmp:pmp "$PROJECT_DIR"
 
-    # Systemd сервис (оптимизированный запуск)
+    # Настройка systemd
+    echo "Настройка systemd сервиса..."
     cat > /etc/systemd/system/pmp.service <<EOF
 [Unit]
 Description=PMP Service
@@ -69,6 +99,7 @@ After=network.target
 User=pmp
 Group=pmp
 WorkingDirectory=$PROJECT_DIR
+Environment="PATH=$VENV_DIR/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ExecStart=$VENV_DIR/bin/python $PROJECT_DIR/app.py
 Restart=always
 RestartSec=5
@@ -77,16 +108,16 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
+    # Запуск сервиса
     systemctl daemon-reload
     systemctl enable --now pmp.service
 
-    # Проверка (оптимизированная)
+    # Проверка
     if systemctl is-active --quiet pmp.service; then
-        echo "Установка завершена успешно"
-        rm -rf "/tmp/${PMP_VERSION}" "/tmp/pmp.tar.gz"
+        echo "Установка успешно завершена!"
+        rm -rf "$TMP_DIR"
     else
-        echo "Ошибка: сервис не запущен" >&2
-        journalctl -u pmp.service -b --no-pager >&2
-        exit 1
+        error_exit "Сервис не запущен. Проверьте логи: journalctl -u pmp.service -b"
     fi
 }
+
