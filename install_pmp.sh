@@ -21,16 +21,43 @@ if ! command -v uv &> /dev/null; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
 
     # Проверяем, куда установился uv
-    UV_PATH=$(which uv)
+    UV_PATH=$(command -v uv || echo "")
     if [ -z "$UV_PATH" ]; then
-        echo "Ошибка: uv не был установлен корректно"
-        exit 1
+        # Проверяем стандартные пути установки
+        if [ -f "$HOME/.local/bin/uv" ]; then
+            UV_PATH="$HOME/.local/bin/uv"
+        else
+            echo "Ошибка: uv не был установлен корректно"
+            exit 1
+        fi
     fi
 
     # Если uv установился не в /usr/local/bin, копируем его туда
     if [ "$UV_PATH" != "/usr/local/bin/uv" ]; then
         echo "Копирование uv в /usr/local/bin..."
-        cp "$UV_PATH" /usr/local/bin/uv
+
+        # Проверяем права на запись
+        if [ ! -w "/usr/local/bin" ]; then
+            echo "Требуются права sudo для копирования в /usr/local/bin"
+            sudo cp "$UV_PATH" /usr/local/bin/uv || {
+                echo "Ошибка: не удалось скопировать uv в /usr/local/bin"
+                exit 1
+            }
+        else
+            cp "$UV_PATH" /usr/local/bin/uv || {
+                echo "Ошибка: не удалось скопировать uv"
+                exit 1
+            }
+        fi
+
+        # Проверяем, что копирование прошло успешно
+        if [ ! -f "/usr/local/bin/uv" ]; then
+            echo "Ошибка: uv не был скопирован в /usr/local/bin"
+            exit 1
+        fi
+
+        # Устанавливаем права на исполнение
+        sudo chmod +x /usr/local/bin/uv
     fi
 
     # Проверяем, что uv теперь доступен
@@ -39,7 +66,7 @@ if ! command -v uv &> /dev/null; then
         exit 1
     fi
 
-    echo "uv успешно установлен"
+    echo "uv успешно установлен в /usr/local/bin/"
 fi
 
 
