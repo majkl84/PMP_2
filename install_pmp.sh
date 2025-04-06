@@ -78,9 +78,7 @@ echo "Установка зависимостей Python..."
 cd "$PROJECT_DIR"
 if [ -f "pyproject.toml" ]; then
     # Создаем виртуальное окружение
-    uv venv
-
-    uv pip install -e .
+    uv venv .venv && .venv/bin/uv pip install -e .
 
 else
     echo "Ошибка: файл pyproject.toml не найден в $PROJECT_DIR"
@@ -102,11 +100,6 @@ chmod 755 "$PROJECT_DIR/app.py"
 # Если есть конфигурационные файлы, которые должны быть доступны только для чтения
 find "$PROJECT_DIR" -type f -name "*.conf" -exec chmod 644 {} \;
 
-# Если есть директории, куда pmp должен иметь возможность записи
-mkdir -p "$PROJECT_DIR/logs"
-chown pmp:pmp "$PROJECT_DIR/logs"
-chmod 755 "$PROJECT_DIR/logs"
-
 # Systemd сервис
 cat > /etc/systemd/system/pmp.service <<EOF
 [Unit]
@@ -117,7 +110,7 @@ After=network.target
 User=pmp
 Group=pmp
 WorkingDirectory=$PROJECT_DIR
-ExecStart=/usr/local/bin/uv run $PROJECT_DIR/app.py
+ExecStart=$PROJECT_DIR/.venv/bin/python $PROJECT_DIR/app.py
 Restart=always
 RestartSec=5
 
