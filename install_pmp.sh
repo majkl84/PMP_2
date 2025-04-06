@@ -1,108 +1,66 @@
 #!/bin/bash
 #--------------------------------------------------------------------
-# Script to Install PMP on Linux
-# Developed by Majkl84 in 2025-04
+# Скрипт для установки PMP в Linux
+# Разработан Majkl84 в 2025-04
 #---------------------------------------------------------------------
 # https://github.com/majkl84/PMP_2
 
-set -e  # Прерывать при ошибках
+set -e  # Сохранено без изменений
 PMP_VERSION="PMP_2-PMP_R.1.0.0"
 PROJECT_DIR="/usr/bin/pmp"
 VENV_DIR="$PROJECT_DIR/.venv"
 
-
-# Скачивание и распаковка
-cd /tmp
-wget "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O pmp.tar.gz
-tar xfz pmp.tar.gz
-cd "$PMP_VERSION"
-
-# Установка uv в системную директорию
-if ! command -v uv &> /dev/null; then
+# Установка uv (оптимизированная проверка)
+install_uv() {
     echo "Установка uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-
-    # Проверяем, куда установился uv
-    UV_PATH=$(command -v uv || echo "")
-    if [ -z "$UV_PATH" ]; then
-        # Проверяем стандартные пути установки
-        if [ -f "$HOME/.local/bin/uv" ]; then
-            UV_PATH="$HOME/.local/bin/uv"
-        else
-            echo "Ошибка: uv не был установлен корректно"
-            exit 1
-        fi
-    fi
-
-    # Если uv установился не в /usr/local/bin, копируем его туда
-    if [ "$UV_PATH" != "/usr/local/bin/uv" ]; then
-        echo "Копирование uv в /usr/local/bin..."
-
-        # Проверяем права на запись
-        if [ ! -w "/usr/local/bin" ]; then
-            echo "Требуются права sudo для копирования в /usr/local/bin"
-            sudo cp "$UV_PATH" /usr/local/bin/uv || {
-                echo "Ошибка: не удалось скопировать uv в /usr/local/bin"
-                exit 1
-            }
-        else
-            cp "$UV_PATH" /usr/local/bin/uv || {
-                echo "Ошибка: не удалось скопировать uv"
-                exit 1
-            }
-        fi
-
-        # Проверяем, что копирование прошло успешно
-        if [ ! -f "/usr/local/bin/uv" ]; then
-            echo "Ошибка: uv не был скопирован в /usr/local/bin"
-            exit 1
-        fi
-
-        # Устанавливаем права на исполнение
-        sudo chmod +x /usr/local/bin/uv
-    fi
-
-    # Проверяем, что uv теперь доступен
-    if ! command -v uv &> /dev/null; then
-        echo "Ошибка: uv не доступен после установки"
+    if ! curl -LsSf https://astral.sh/uv/install.sh | sh; then
+        echo "Ошибка: uv не был установлен корректно" >&2
         exit 1
     fi
 
-    echo "uv успешно установлен в /usr/local/bin/"
-fi
+    # Оптимизированный поиск uv
+    local UV_PATH
+    UV_PATH=$(command -v uv || find ~/.local/bin /usr/local/bin -name uv 2>/dev/null | head -1)
+    [ -z "$UV_PATH" ] && { echo "Ошибка: uv не найден" >&2; exit 1; }
 
+    # Копирование с минимальным количеством проверок
+    if [ "$UV_PATH" != "/usr/local/bin/uv" ]; then
+        echo "Копирование uv в /usr/local/bin..."
+        { cp "$UV_PATH" /usr/local/bin/uv || sudo cp "$UV_PATH" /usr/local/bin/uv; } &&
+        sudo chmod +x /usr/local/bin/uv
+    fi
+}
 
-# Копирование файлов (сохранение прав)
-mkdir -p "$PROJECT_DIR"
-find . -mindepth 1 \(  -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
+# Основной процесс установки
+{
+    # Скачивание и распаковка (без изменений)
+    cd /tmp || exit 1
+    wget -q "https://github.com/majkl84/PMP_2/archive/refs/tags/PMP_R.1.0.0.tar.gz" -O pmp.tar.gz
+    tar xfz pmp.tar.gz
+    cd "$PMP_VERSION" || exit 1
 
-# Установка зависимостей проекта
-echo "Установка зависимостей Python..."
-cd "$PROJECT_DIR"
-if [ -f "pyproject.toml" ]; then
-    # Создаем виртуальное окружение
-    uv venv
+    # Установка uv
+    command -v uv >/dev/null || install_uv
 
-    uv pip install -e .
+    # Копирование файлов (оптимизированный find)
+    echo "Копирование файлов..."
+    mkdir -p "$PROJECT_DIR"
+    find . -mindepth 1 \( -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o \
+        -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
 
-else
-    echo "Ошибка: файл pyproject.toml не найден в $PROJECT_DIR"
-    exit 1
-fi
+    # Установка зависимостей (объединенные проверки)
+    cd "$PROJECT_DIR" || exit 1
+    [ -f "pyproject.toml" ] || { echo "Ошибка: pyproject.toml не найден" >&2; exit 1; }
 
-# Создание системного пользователя
-if ! id pmp &>/dev/null; then
-    useradd -rs /bin/false pmp
-fi
-chown -R pmp:pmp "$PROJECT_DIR"
+    uv venv &&
+    uv pip install -e . || { echo "Ошибка установки зависимостей" >&2; exit 1; }
 
+    # Пользователь и права (без изменений)
+    id pmp &>/dev/null || useradd -rs /bin/false pmp
+    chown -R pmp:pmp "$PROJECT_DIR"
 
-
-# Установка зависимостей
-uv pip install -r "$PROJECT_DIR/requirements.txt"
-
-# Systemd сервис
-cat > /etc/systemd/system/pmp.service <<EOF
+    # Systemd сервис (оптимизированный запуск)
+    cat > /etc/systemd/system/pmp.service <<EOF
 [Unit]
 Description=PMP Service
 After=network.target
@@ -119,20 +77,16 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# Запуск сервиса
-systemctl daemon-reload
-systemctl enable pmp.service
-systemctl start pmp.service
+    systemctl daemon-reload
+    systemctl enable --now pmp.service
 
-# Проверка
-echo "Установка завершена"
-systemctl status pmp.service --no-pager
-
-# После успешного запуска сервиса
-if systemctl is-active --quiet pmp.service; then
-    echo "Удаление временных файлов..."
-    rm -rf "/tmp/${PMP_VERSION}" "/tmp/pmp.tar.gz"
-else
-    echo "Ошибка: сервис не запущен. Проверьте журналы: journalctl -u pmp.service -b"
-    exit 1
-fi
+    # Проверка (оптимизированная)
+    if systemctl is-active --quiet pmp.service; then
+        echo "Установка завершена успешно"
+        rm -rf "/tmp/${PMP_VERSION}" "/tmp/pmp.tar.gz"
+    else
+        echo "Ошибка: сервис не запущен" >&2
+        journalctl -u pmp.service -b --no-pager >&2
+        exit 1
+    fi
+}
