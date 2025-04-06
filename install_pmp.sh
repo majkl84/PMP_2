@@ -25,14 +25,31 @@ fi
 
 # Копирование файлов (сохранение прав)
 mkdir -p "$PROJECT_DIR"
-find . -mindepth 1 \( -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
+find . -mindepth 1 \(  -name 'install_pmp.sh' -o -name '.gitignore' -o -name 'LICENSE' \) -prune -o -exec cp -r --parents '{}' "$PROJECT_DIR/" \;
 #cp -r . "$PROJECT_DIR/"
 
 # Создание системного пользователя
 if ! id pmp &>/dev/null; then
     useradd -rs /bin/false pmp
 fi
+# Установка прав доступа
 chown -R pmp:pmp "$PROJECT_DIR"
+chmod -R 755 "$PROJECT_DIR"
+
+# Убедимся, что pmp имеет доступ к директории с uv
+chmod 755 /usr/local/bin
+chmod 755 /usr/local/bin/uv
+
+# Если app.py требует права на выполнение
+chmod 755 "$PROJECT_DIR/app.py"
+
+# Если есть конфигурационные файлы, которые должны быть доступны только для чтения
+find "$PROJECT_DIR" -type f -name "*.conf" -exec chmod 644 {} \;
+
+# Если есть директории, куда pmp должен иметь возможность записи
+mkdir -p "$PROJECT_DIR/logs"
+chown pmp:pmp "$PROJECT_DIR/logs"
+chmod 755 "$PROJECT_DIR/logs"
 
 # Systemd сервис
 cat > /etc/systemd/system/pmp.service <<EOF
