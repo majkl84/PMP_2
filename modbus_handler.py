@@ -1,5 +1,5 @@
 from pymodbus.client import ModbusTcpClient
-# from custom_components import log_message
+from log import log_message
 from config import MODBUS_REGISTER_MAP
 
 
@@ -19,13 +19,13 @@ from config import MODBUS_REGISTER_MAP
 def read_modbus_data(host, unit_id):
     client = ModbusTcpClient(host)
     if not client.connect():
-        # log_message(f"Failed to connect to Modbus host: {host}")
+        log_message(f"Failed to connect to Modbus host: {host}")
         return None
 
     try:
         result = client.read_input_registers(address=0, count=10, slave=unit_id)
         if result.isError():
-            # log_message(f"Modbus error: {result}")
+            log_message(f"Modbus error: {result}")
             return None
 
         registers = result.registers
@@ -51,10 +51,10 @@ def read_modbus_data(host, unit_id):
             "AlarmStatus": raw_data["AlarmStatus"]
         }
 
-        # log_message(f"Обработанные данные из Modbus {host} (Адрес устройства: {unit_id}): {data}")
+        log_message(f"Обработанные данные из Modbus {host} (Адрес устройства: {unit_id}): {data}")
         return data
     except Exception as e:
-        # log_message(f"Exception while reading Modbus registers: {e}")
+        log_message(f"Exception while reading Modbus registers: {e}")
         return None
     finally:
         client.close()
